@@ -1,0 +1,79 @@
+name: build tool release
+
+# Builds a Proton-ZLUDA "tool" release (the drag-and-drop Proton) using convert.sh.
+#
+# NOTE: building the hipwine shim and bundling ROCm libs needs a ROCm environment and Wine
+# build tools. This workflow installs them on ubuntu-latest, but it is far more reliable on a
+# SELF-HOSTED runner that already has ROCm + Wine. Use it as a starting point.
+#
+# It is intentionally only run manually, or weekly to *detect* a new proton-cachyos release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      proton_url:
+        description: "URL of the proton-cachyos-slr tarball to convert"
+        required: true
+      tool_tag:
+        description: "Release tag for the produced tool, e.g. tool-11.0-20261005"
+        required: true
+      zluda_version:
+        description: "ZLUDA release tag"
+        default: "v7-preview.15"
+  schedule:
+    - cron: "0 6 * * 0" # weekly: just detects + logs whether a new proton-cachyos exists
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect latest proton-cachyos (scheduled only)
+        if: github.event_name == 'schedule'
+        run: |
+          tag=$(curl -fsSL https://api.github.com/repos/CachyOS/proton-cachyos/releases \
+                | grep -m1 '"tag_name"' | cut -d'"' -f4 || true)
+          echo "Latest proton-cachyos release: $tag"
+          echo "If it's newer than the newest 'tool-*' release, run this workflow manually with the tarball URL."
+
+      - name: Build (manual only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ZLUDA_VERSION: ${{ inputs.zluda_version }}
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build mingw-w64 patchelf zstd curl wine64-dev || \
+            sudo apt-get install -y meson ninja-build mingw-w64 patchelf zstd curl
+          # ROCm (headers + libs; no GPU needed to link/bundle)
+          curl -fsSL https://repo.radeon.com/rocm/rocm.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/rocm.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2 noble main" \
+            | sudo tee /etc/apt/sources.list.d/rocm.list
+          sudo apt-get update && sudo apt-get install -y rocm-hip-runtime-dev || true
+
+          # 1. payload: hipwine + rocm libs
+          ./scripts/build-hipwine.sh "$RUNNER_TEMP/hipwine"
+          ./scripts/bundle-rocm.sh "$RUNNER_TEMP/rocm-libs"
+
+          # 2. fetch + convert the Proton build
+          curl -fL -o "$RUNNER_TEMP/proton.tar.gz" "${{ inputs.proton_url }}"
+          HIPWINE_LIB="$RUNNER_TEMP/hipwine/lib/wine" ROCM_LIBS="$RUNNER_TEMP/rocm-libs" \
+            ./convert.sh "$RUNNER_TEMP/proton.tar.gz" "$RUNNER_TEMP/Proton-ZLUDA"
+
+          # 3. package
+          out="$RUNNER_TEMP/Proton-ZLUDA"
+          ( cd "$RUNNER_TEMP" && tar --zstd -cf Proton-ZLUDA.tar.zst Proton-ZLUDA )
+          ( cd "$RUNNER_TEMP" && sha256sum Proton-ZLUDA.tar.zst > Proton-ZLUDA.tar.zst.sha256 )
+
+      - name: Publish release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.tool_tag }}" \
+            "$RUNNER_TEMP/Proton-ZLUDA.tar.zst" "$RUNNER_TEMP/Proton-ZLUDA.tar.zst.sha256" \
+            --title "Proton-ZLUDA ${{ inputs.tool_tag }}" \
+            --notes "Prebuilt drag-and-drop Proton-ZLUDA tool. Extract into Steam/compatibilitytools.d, restart Steam, force it per game, set PhysX to High."

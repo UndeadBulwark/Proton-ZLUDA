@@ -1,0 +1,12 @@
+# Build payloads / large artifacts (kept out of git; shipped via Releases)
+payload/
+*.tar.zst
+*.tar.gz
+*.tar.xz
+Proton-ZLUDA-*/
+zluda-libs/
+zluda/
+*.sha256
+
+# caches
+.cache/
