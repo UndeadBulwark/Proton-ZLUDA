@@ -14,6 +14,7 @@
 #                 and x86_64-unix/amdhip64_7.dll.so). Default: ./payload/hipwine/lib/wine, else built.
 #   ROCM_LIBS     path to a dir with the ROCm lib closure. Default: ./payload/rocm-libs, else bundled.
 #   TOOL_NAME     internal/display name of the produced tool. Default: ZludaProton
+#   NO_NVAPI_SPOOF=1  don't replace Proton's NVAPI with ZLUDA's spoofing NVAPI
 #   ZLUDA_VERSION pinned ZLUDA release tag for auto-download. Default: v7-preview.15
 #
 set -euo pipefail
@@ -138,6 +139,20 @@ rm -f "$DP/drive_c/windows/system32/nvcuda.dll" "$DP/drive_c/windows/syswow64/nv
 cp -f "$ZLUDA_DIR/nvcuda.dll"    "$DP/drive_c/windows/system32/nvcuda.dll"
 cp -f "$ZLUDA_DIR/32/nvcuda.dll" "$DP/drive_c/windows/syswow64/nvcuda.dll"
 [ -f "$DP/user.reg" ] && sed -i 's/^"nvcuda"="disabled"/"nvcuda"="native"/' "$DP/user.reg" || true
+
+# --- 3b. nvapi: ZLUDA spoof (fake NVIDIA GPU; unlocks NVIDIA-gated PhysX menus) ---
+# Proton's use_nvapi path copies files/lib/wine/nvapi/* into the prefix, so swapping the
+# SOURCE dlls makes it deliver ZLUDA's spoofing nvapi. Opt-out with NO_NVAPI_SPOOF=1.
+if [ "${NO_NVAPI_SPOOF:-0}" != "1" ] && [ -f "$ZLUDA_DIR/nvapi64.dll" ] && [ -f "$ZLUDA_DIR/32/nvapi.dll" ]; then
+  log "installing ZLUDA nvapi (NVIDIA spoof)"
+  NVDIR="$LIB/nvapi"
+  if [ -d "$NVDIR" ]; then
+    [ -f "$NVDIR/i386-windows/nvapi.dll" ]    && cp -f "$ZLUDA_DIR/32/nvapi.dll" "$NVDIR/i386-windows/nvapi.dll"
+    [ -f "$NVDIR/x86_64-windows/nvapi64.dll" ] && cp -f "$ZLUDA_DIR/nvapi64.dll"  "$NVDIR/x86_64-windows/nvapi64.dll"
+  else
+    log "WARNING: $NVDIR not found; skipping nvapi spoof"
+  fi
+fi
 
 # --- 4. hipwine + ROCm libs (self-contained) ------------------------------
 log "installing hipwine + ROCm libs into the tool"

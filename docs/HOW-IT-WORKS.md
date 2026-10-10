@@ -58,6 +58,10 @@ forward), and now everything — ROCm libs, `/dev/kfd`, `/dev/dri` — is reacha
 6. **`user_settings.py`** — sets `ZLUDA64_PATH` (Windows path to the embedded `zluda/`) so the 32-bit
    shim can find `zluda64_server.exe`, plus `PROTON_LOG=1`.
 7. **`compatibilitytool.vdf`** — sets the tool's internal/display name.
+8. **nvapi spoof** — replaces the tool's `files/lib/wine/nvapi/{i386-windows/nvapi.dll,
+   x86_64-windows/nvapi64.dll}` with ZLUDA's spoofing NVAPI. Proton's `use_nvapi` path copies these into
+   the prefix, so the game sees a fake NVIDIA GPU — this **unlocks NVIDIA-gated PhysX menus**
+   (verified: Borderlands 2's "PhysX Effects" becomes selectable). Opt-out with `NO_NVAPI_SPOOF=1`.
 
 ## Verified result
 

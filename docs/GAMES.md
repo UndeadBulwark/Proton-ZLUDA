@@ -33,9 +33,11 @@ PhysX-specific work is 32-bit oriented. Treat as experimental; report results.
 
 ## Games that gate GPU PhysX on NVIDIA
 
-Some titles query NVAPI / the GPU vendor and hide the GPU PhysX option on AMD. Workaround: force the
-setting in the game's config (`PhysXLevel=2` in Borderlands 2's `WillowEngine.ini` did it), and/or
-replace the prefix's `nvapi.dll` with ZLUDA's spoofing NVAPI. Details vary per title.
+Some titles query NVAPI / the GPU vendor and hide the GPU PhysX option on AMD. Proton-ZLUDA already
+handles this: it ships **ZLUDA's spoofing `nvapi`**, so the game sees an "NVIDIA" GPU and the setting
+becomes selectable (verified with Borderlands 2 — "PhysX Effects: High" could then be changed, and the
+game asks for a restart rather than crashing). If a title misbehaves with a spoofed NVAPI, rebuild the
+tool with `NO_NVAPI_SPOOF=1`.
 
 ## Reporting a game
 

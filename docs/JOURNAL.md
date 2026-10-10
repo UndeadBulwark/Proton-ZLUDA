@@ -68,3 +68,32 @@ The pasted plan assumed ZLUDA 32-bit PhysX needs a new Wine↔native transport (
 1. Tool at `~/.local/share/Steam/compatibilitytools.d/ZludaProton/` (copy of proton-cachyos-slr, patched as above).
 2. `config.vdf` CompatToolMapping `49520` → `ZludaProton`.
 3. `PhysXLevel=2` in `WillowEngine.ini`.
+
+## Converter + drag-and-drop validation
+- Wrote `Proton-ZLUDA` converter (`convert.sh`) that turns any proton-cachyos-slr / GE-Proton into
+  a self-contained tool (ZLUDA nvcuda in default_pfx, hipwine + embedded `zluda-libs`, embedded
+  `zluda/`, host-mode manifest, relocatable `user_settings.py` that resolves `ZLUDA64_PATH` from `__file__`).
+- Ran it into `compatibilitytools.d/ZludaProton` (reflink copy = instant) and relaunched BL2:
+  - chain loads from the EMBEDDED path `...\ZludaProton\zluda\zluda64_server.exe` ✔
+  - `PhysX GPU Support: ENABLED` ✔, `zluda64_server.exe` resident ✔, no CUDA/HIP errors ✔
+- So the produced tool is genuinely drag-and-drop (no external `~/Games/...` paths).
+
+## Published
+- Repo: https://github.com/UndeadBulwark/Proton-ZLUDA (public, MIT)
+- Release `tool-11.0-20261005` (Latest): Proton-ZLUDA-tool-11.0-20261005.tar.zst (615 MB) + .sha256
+- Release `converter-v1.0.0`: convert.sh, install.sh, converter tarball
+- Topics: zluda, physx, radeon, amd, proton, cuda, linux-gaming, steam
+
+## nvapi spoof attempt (unlock PhysX menu)
+- BL2 loads system32\nvapi.dll = Proton's DXVK-NVAPI, which logs "NVIDIA or other suitable device not found".
+- Proton's use_nvapi path already copies its own files/lib/wine/nvapi/{i386-windows/nvapi.dll,x86_64-windows/nvapi64.dll} into the prefix with override nvapi=native.
+- Replaced those two SOURCE files with ZLUDA's spoofing 32/nvapi.dll + nvapi64.dll (backups: *.dxvk.bak), and swapped the current prefix copies.
+- Relaunched BL2: nvapi.dll now loads as ZLUDA's (no DXVK-NVAPI lines), PhysX GPU Support still ENABLED, ZLUDA chain intact, no crash.
+- Pending: confirm in the Steam/Video options whether "PhysX Effects" is now selectable (could not read the menu remotely; fullscreen capture is black).
+- If it works -> fold into convert.sh (deliver ZLUDA nvapi by default, with --no-nvapi-spoof opt-out) + docs + new release.
+
+## nvapi spoof — CONFIRMED
+- After swapping the tool's nvapi source files for ZLUDA's spoofing nvapi, BL2's **"PhysX Effects"
+  setting became selectable**, and changing it makes the game ask for a restart (no crash).
+- Folded into convert.sh as step 3b (default on; `NO_NVAPI_SPOOF=1` to opt out).
+- Regenerated ZludaProton from the updated converter (nvapi=ZLUDA, nvcuda=ZLUDA, relocatable user_settings).

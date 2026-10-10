@@ -10,7 +10,9 @@ Proton-ZLUDA is a drop-in Steam compatibility tool (a patched Proton) that:
 - runs on the **host** (not Steam's container) so ROCm and `/dev/kfd` are reachable.
 
 It was developed and verified with **Borderlands 2** (AppID 49520, 32-bit PhysX) on
-**CachyOS + Radeon RX 9070 XT (gfx1201)** — `PhysX GPU Support: ENABLED`, in-game and playable.
+**CachyOS + Radeon RX 9070 XT (gfx1201)**: `PhysX GPU Support: ENABLED`, the in-game
+**"PhysX Effects: High"** setting is selectable (thanks to the bundled nvapi spoof), and the game runs
+at playable frame rates (no single-digit drop) — i.e. the GPU is doing the PhysX work.
 
 > Status: **experimental**. ZLUDA's 32-bit PhysX support is young; expect per-game quirks.
 
@@ -65,8 +67,10 @@ aren't already present (see *Requirements*).
   Alice: Madness Returns, Mafia II (Classic), Batman: Arkham Asylum/City/Origins.
 - **64-bit GameWorks PhysX** — ZLUDA's 64-bit CUDA works, but 64-bit PhysX GPU is not the focus and
   may be partial. Try it, expect rough edges.
-- Games that **gate GPU PhysX on an NVIDIA check** may keep it disabled; setting PhysX to High in the
-  config and/or ensuring the NVIDIA PhysX System Software is installed in the prefix usually helps.
+- Games that **gate the GPU PhysX option on an NVIDIA check** are handled: the tool ships **ZLUDA's
+  spoofing `nvapi`** so the game sees an "NVIDIA" GPU and unlocks the setting (e.g. Borderlands 2's
+  "PhysX Effects: High" becomes selectable). Disable with `NO_NVAPI_SPOOF=1` in `convert.sh` if a title
+  misbehaves with a spoofed NVAPI.
 - Known ZLUDA quirks: fluid sims can glitch; Batman: Arkham Origins at High can explode geometry.
 
 See `docs/GAMES.md` for details.
